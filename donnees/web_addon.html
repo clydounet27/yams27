@@ -9,10 +9,12 @@
       <div class="row"><button class="btn" id="signIn" type="button">Se connecter avec Google</button></div>
     </div>
     <div id="stepPhoto" hidden>
-      <label class="drop" for="photoIn">
-        <b>Prendre ou choisir une photo</b><br>
-        <span class="status">Une à quatre feuilles de score par photo. Les grilles sont lues automatiquement, vous vérifiez ensuite.</span>
-      </label>
+      <div class="pickrow">
+        <label class="drop" for="camIn"><span class="big">📷</span><b>Prendre une photo</b></label>
+        <label class="drop" for="photoIn"><span class="big">🖼️</span><b>Choisir dans la galerie</b></label>
+      </div>
+      <p class="status">Une à quatre feuilles de score par photo, bien de face. Les grilles sont lues automatiquement, vous vérifiez ensuite.</p>
+      <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
       <input type="file" id="photoIn" accept="image/*" hidden>
       <p class="status" id="who"></p>
     </div>
@@ -75,8 +77,8 @@ $("#signIn").onclick = async () => {
   try { await fb.signInWithPopup(auth, new fb.GoogleAuthProvider()); }
   catch (e) { status("Connexion impossible : " + (e.code || e.message), true); }
 };
-$("#againBtn").onclick = () => { reset(); $("#photoIn").click(); };
-$("#photoIn").onchange = e => { const f = e.target.files[0]; if (f) readPhoto(f); e.target.value = ""; };
+$("#againBtn").onclick = () => reset();
+["#photoIn", "#camIn"].forEach(id => $(id).onchange = e => { const f = e.target.files[0]; if (f) readPhoto(f); e.target.value = ""; });
 
 function refreshAuth() {
   const ok = user && ALLOWED.includes((user.email || "").toLowerCase());
