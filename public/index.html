@@ -109,6 +109,10 @@ dialog#addDlg::backdrop{background:rgba(10,14,20,.55)}
 .dlg .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .drop{display:block;border:2px dashed var(--rule);line-height:1.5;border-radius:10px;padding:22px;text-align:center;cursor:pointer;background:var(--sheet)}
 .drop:hover{border-color:var(--biro)}
+.keybox{display:flex;flex-direction:column;gap:8px;background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:12px}
+.keybox[hidden]{display:none}
+.keybox ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.keybox a,#keyChange{color:var(--biro)}
 .pickrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .pickrow .drop{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 10px}
 .pickrow .big{font-size:1.8rem;line-height:1}
@@ -451,6 +455,16 @@ if(!window.YAMS_WAIT) boot([]);
       <p class="status">Connectez-vous avec votre compte Google pour ajouter des parties.</p>
       <div class="row"><button class="btn" id="signIn" type="button">Se connecter avec Google</button></div>
     </div>
+    <div id="stepKey" class="keybox" hidden>
+      <p class="status"><b>Clé IA à enregistrer (une seule fois).</b> La lecture des photos passe par une clé Gemini gratuite :</p>
+      <ol class="status">
+        <li>Ouvrez <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> avec votre compte Google.</li>
+        <li>Cliquez sur « Créer une clé API » (Create API key), choisissez le projet <b>Yam's</b> si on vous le demande, puis copiez la clé (elle commence par <code>AIza</code>).</li>
+        <li>Collez-la ici. Elle est gardée dans votre base Firebase, lisible seulement par votre compte.</li>
+      </ol>
+      <div class="row"><input id="keyIn" type="text" autocomplete="off" placeholder="AIza…" style="flex:1;min-width:0;font:inherit;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--sheet);color:var(--ink)">
+      <button class="btn" id="keySave" type="button">Enregistrer la clé</button></div>
+    </div>
     <div id="stepPhoto" hidden>
       <div class="pickrow">
         <label class="drop" for="camIn"><span class="big">📷</span><b>Prendre une photo</b></label>
@@ -460,6 +474,7 @@ if(!window.YAMS_WAIT) boot([]);
       <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
       <input type="file" id="photoIn" accept="image/*" hidden>
       <p class="status" id="who"></p>
+      <p class="status"><a href="#" id="keyChange">Changer la clé IA</a></p>
     </div>
     <img id="thumb" class="thumb" alt="Photo envoyée" hidden>
     <p class="status" id="addStatus" role="status"></p>
@@ -526,13 +541,48 @@ $("#againBtn").onclick = () => reset();
 function refreshAuth() {
   const ok = user && ALLOWED.includes((user.email || "").toLowerCase());
   $("#stepAuth").hidden = !!ok;
-  $("#stepPhoto").hidden = !ok || !!parsed.length;
+  $("#stepPhoto").hidden = !ok || !!parsed.length || !$("#stepKey").hidden;
   $("#who").textContent = user ? `Connecté : ${user.email}` : "";
   if (user && !ok) status(`Le compte ${user.email} n'a pas le droit d'ajouter des parties.`, true);
 }
 function status(t, err) { const s = $("#addStatus"); s.textContent = t; s.className = "status" + (err ? " err" : ""); }
 let parsed = [];
-function reset() { parsed = []; $("#grids").innerHTML = ""; $("#saveRow").hidden = true; $("#thumb").hidden = true; status(""); refreshAuth(); }
+let geminiKey = null, keyLoaded = false, pending = null;
+async function loadKey() {
+  if (keyLoaded) return geminiKey;
+  try { const d = await fb.getDoc(fb.doc(db, "config", "gemini")); geminiKey = d.exists() ? (d.data().key || null) : null; keyLoaded = true; }
+  catch (e) { console.warn("Clé IA illisible", e); }
+  return geminiKey;
+}
+function showKeyStep(msg) { $("#stepKey").hidden = false; $("#stepPhoto").hidden = true; if (msg) status(msg, true); }
+$("#keyChange").onclick = e => { e.preventDefault(); $("#keyIn").value = ""; showKeyStep(); };
+$("#keySave").onclick = async () => {
+  const k = $("#keyIn").value.trim();
+  if (!/^AIza[0-9A-Za-z_\-]{20,}$/.test(k)) return status("Cette clé ne ressemble pas à une clé Gemini : elle doit commencer par AIza.", true);
+  try {
+    await fb.setDoc(fb.doc(db, "config", "gemini"), { key: k, updatedBy: user.email, updatedAt: fb.serverTimestamp() });
+    geminiKey = k; keyLoaded = true; $("#stepKey").hidden = true; $("#stepPhoto").hidden = false;
+    status("Clé enregistrée. Vous pouvez prendre ou choisir la photo.");
+    if (pending) { const f = pending; pending = null; readPhoto(f); }
+  } catch (e) { status("Enregistrement de la clé refusé : " + (e.code || e.message) + ". Les règles Firestore doivent autoriser la collection « config ».", true); }
+};
+async function viaKey(key, b64) {
+  const tried = [];
+  for (const m of MODELS) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({ contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: "image/jpeg", data: b64 } }] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0 } }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) return (j.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
+    const msg = j.error?.message || ("HTTP " + r.status);
+    tried.push(m + " → " + msg.slice(0, 140));
+    if (r.status === 400 && /api key/i.test(msg) || r.status === 403) { const e = new Error(msg); e.badKey = true; throw e; }
+    if (r.status !== 404 && r.status !== 400) break;
+  }
+  throw new Error(tried.join(" | "));
+}
+function reset() { $("#stepKey").hidden = true; parsed = []; $("#grids").innerHTML = ""; $("#saveRow").hidden = true; $("#thumb").hidden = true; status(""); refreshAuth(); }
 
 async function shrink(file) {
   const img = await createImageBitmap(file);
@@ -560,17 +610,28 @@ async function readPhoto(file) {
     const { url, b64 } = await shrink(file);
     $("#thumb").src = url; $("#thumb").hidden = false; $("#stepPhoto").hidden = true;
     status("Lecture des grilles par l'IA… (10 à 30 secondes)");
-    const aiM = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-ai.js`);
-    const ai = aiM.getAI(app, { backend: new aiM.GoogleAIBackend() });
-    let text = null, lastErr = null; const tried = [];
-    for (const m of MODELS) {
-      try {
-        const model = aiM.getGenerativeModel(ai, { model: m, generationConfig: { responseMimeType: "application/json", temperature: 0 } });
-        const r = await model.generateContent([PROMPT, { inlineData: { data: b64, mimeType: "image/jpeg" } }]);
-        text = r.response.text(); break;
-      } catch (e) { lastErr = e; tried.push(m + " → " + String(e.message || e).replace(/^.*generateContent: /, "").replace(/ Learn more.*$/, "").slice(0, 120)); console.warn("Modèle", m, e); }
+    let text = null;
+    const key = await loadKey();
+    if (key) {
+      try { text = await viaKey(key, b64); }
+      catch (e) { if (e.badKey) { showKeyStep("La clé IA est refusée par Google : " + e.message.slice(0, 160)); return; } throw e; }
+    } else {
+      const aiM = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-ai.js`);
+      const ai = aiM.getAI(app, { backend: new aiM.GoogleAIBackend() });
+      const tried = [];
+      for (const m of MODELS) {
+        try {
+          const model = aiM.getGenerativeModel(ai, { model: m, generationConfig: { responseMimeType: "application/json", temperature: 0 } });
+          const r = await model.generateContent([PROMPT, { inlineData: { data: b64, mimeType: "image/jpeg" } }]);
+          text = r.response.text(); break;
+        } catch (e) {
+          const msg = String(e.message || e);
+          tried.push(m + " → " + msg.replace(/^.*generateContent: /, "").replace(/ Learn more.*$/, "").slice(0, 120));
+          if (/genai config not found|api.?key|permission|403/i.test(msg)) { pending = file; showKeyStep("La lecture par Firebase n'est pas disponible sur ce projet : enregistrez une clé IA ci-dessous, puis la photo sera relue automatiquement."); return; }
+        }
+      }
+      if (text == null) throw new Error(tried.join(" | "));
     }
-    if (text == null) { const err = new Error(tried.join(" | ")); throw err; }
     const json = JSON.parse(text.replace(/^```json|```$/g, "").trim());
     parsed = (json.parties || []).map(normalize);
     if (!parsed.length) throw new Error("aucune grille trouvée");

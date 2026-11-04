@@ -97,6 +97,10 @@ dialog#addDlg::backdrop{background:rgba(10,14,20,.55)}
 .dlg .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .drop{display:block;border:2px dashed var(--rule);line-height:1.5;border-radius:10px;padding:22px;text-align:center;cursor:pointer;background:var(--sheet)}
 .drop:hover{border-color:var(--biro)}
+.keybox{display:flex;flex-direction:column;gap:8px;background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:12px}
+.keybox[hidden]{display:none}
+.keybox ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.keybox a,#keyChange{color:var(--biro)}
 .pickrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .pickrow .drop{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 10px}
 .pickrow .big{font-size:1.8rem;line-height:1}
