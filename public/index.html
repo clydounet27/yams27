@@ -562,15 +562,15 @@ async function readPhoto(file) {
     status("Lecture des grilles par l'IA… (10 à 30 secondes)");
     const aiM = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-ai.js`);
     const ai = aiM.getAI(app, { backend: new aiM.GoogleAIBackend() });
-    let text = null, lastErr = null;
+    let text = null, lastErr = null; const tried = [];
     for (const m of MODELS) {
       try {
         const model = aiM.getGenerativeModel(ai, { model: m, generationConfig: { responseMimeType: "application/json", temperature: 0 } });
         const r = await model.generateContent([PROMPT, { inlineData: { data: b64, mimeType: "image/jpeg" } }]);
         text = r.response.text(); break;
-      } catch (e) { lastErr = e; console.warn("Modèle", m, e); if (!/not.?found|404|not supported|unsupported/i.test(String(e.message || e))) break; }
+      } catch (e) { lastErr = e; tried.push(m + " → " + String(e.message || e).replace(/^.*generateContent: /, "").replace(/ Learn more.*$/, "").slice(0, 120)); console.warn("Modèle", m, e); }
     }
-    if (text == null) throw lastErr;
+    if (text == null) { const err = new Error(tried.join(" | ")); throw err; }
     const json = JSON.parse(text.replace(/^```json|```$/g, "").trim());
     parsed = (json.parties || []).map(normalize);
     if (!parsed.length) throw new Error("aucune grille trouvée");
