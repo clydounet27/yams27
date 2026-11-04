@@ -473,7 +473,7 @@ if(!window.YAMS_WAIT) boot([]);
 
 <script type="module">
 const V = "12.14.0";
-const MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"];
+const MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"];
 const ALLOWED = ["clydounet27@gmail.com"]; // doit correspondre aux règles Firestore
 const P = ["R", "G", "JM"];
 const ROWS = ["1","2","3","4","5","6","Brelan","Carré","Full","Petite suite","Grande suite","Yam's","Chance"];
@@ -568,7 +568,7 @@ async function readPhoto(file) {
         const model = aiM.getGenerativeModel(ai, { model: m, generationConfig: { responseMimeType: "application/json", temperature: 0 } });
         const r = await model.generateContent([PROMPT, { inlineData: { data: b64, mimeType: "image/jpeg" } }]);
         text = r.response.text(); break;
-      } catch (e) { lastErr = e; }
+      } catch (e) { lastErr = e; console.warn("Modèle", m, e); if (!/not.?found|404|not supported|unsupported/i.test(String(e.message || e))) break; }
     }
     if (text == null) throw lastErr;
     const json = JSON.parse(text.replace(/^```json|```$/g, "").trim());
@@ -578,7 +578,11 @@ async function readPhoto(file) {
     status(`${parsed.length} grille(s) lue(s). Vérifiez les cases, surtout celles en orange, puis enregistrez.`);
   } catch (e) {
     console.error(e);
-    status("La lecture a échoué : " + (e.message || e) + ". Réessayez avec une photo plus nette, bien de face.", true);
+    const msg = String(e.message || e).replace(/\s+/g, " ").slice(0, 300);
+    const hint = /api.?key|permission|403|disabled|not been used|enable/i.test(msg) ? " L'IA n'est pas encore autorisée sur le projet Firebase (AI Logic)."
+      : /JSON|Unexpected token|aucune grille/i.test(msg) ? " L'IA n'a pas reconnu de grille : essayez une photo plus nette, bien de face."
+      : /quota|429|resource exhausted/i.test(msg) ? " Limite gratuite atteinte : réessayez dans une minute." : "";
+    status("La lecture a échoué." + hint + " Détail : " + msg, true);
     $("#stepPhoto").hidden = false; parsed = [];
   }
 }
