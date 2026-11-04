@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Parties ajoutées depuis l'appli : lecture pour tous, ajout et suppression réservés aux comptes listés.
+    match /parties/{id} {
+      allow read: if true;
+      allow create, delete: if request.auth != null
+        && request.auth.token.email in ['clydounet27@gmail.com'];
+    }
+  }
+}

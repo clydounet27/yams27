@@ -1,0 +1,254 @@
+<dialog id="addDlg" aria-labelledby="addTitle">
+  <div class="dlg">
+    <div class="row" style="justify-content:space-between">
+      <h2 id="addTitle">Ajouter des parties</h2>
+      <button class="btn ghost" id="addClose" type="button">Fermer</button>
+    </div>
+    <div id="stepAuth" hidden>
+      <p class="status">Connectez-vous avec votre compte Google pour ajouter des parties.</p>
+      <div class="row"><button class="btn" id="signIn" type="button">Se connecter avec Google</button></div>
+    </div>
+    <div id="stepPhoto" hidden>
+      <label class="drop" for="photoIn">
+        <b>Prendre ou choisir une photo</b><br>
+        <span class="status">Une à quatre feuilles de score par photo. Les grilles sont lues automatiquement, vous vérifiez ensuite.</span>
+      </label>
+      <input type="file" id="photoIn" accept="image/*" hidden>
+      <p class="status" id="who"></p>
+    </div>
+    <img id="thumb" class="thumb" alt="Photo envoyée" hidden>
+    <p class="status" id="addStatus" role="status"></p>
+    <div class="grids" id="grids"></div>
+    <div class="row" id="saveRow" hidden>
+      <button class="btn" id="saveBtn" type="button">Enregistrer</button>
+      <button class="btn ghost" id="againBtn" type="button">Autre photo</button>
+    </div>
+  </div>
+</dialog>
+
+<script type="module">
+const V = "12.14.0";
+const MODELS = ["gemini-3.5-flash", "gemini-3.8-flash"];
+const ALLOWED = ["clydounet27@gmail.com"]; // doit correspondre aux règles Firestore
+const P = ["R", "G", "JM"];
+const ROWS = ["1","2","3","4","5","6","Brelan","Carré","Full","Petite suite","Grande suite","Yam's","Chance"];
+const VALID = [[0,1,2,3,4,5],[0,2,4,6,8,10],[0,3,6,9,12,15],[0,4,8,12,16,20],[0,5,10,15,20,25],[0,6,12,18,24,30],
+  [0,3,6,9,12,15,18],[0,4,8,12,16,20,24],[0,25],[0,30],[0,40],null,null];
+const $ = s => document.querySelector(s);
+
+let fb, app, db, auth, user = null;
+const bootOnce = (() => { let done = false; return games => { if (done) return; done = true; window.YAMS.boot(games); }; })();
+setTimeout(() => bootOnce([]), 6000); // si Firebase ne répond pas, on affiche quand même les stats
+
+async function init() {
+  const [appM, fsM, authM] = await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`)]);
+  fb = { ...appM, ...fsM, ...authM };
+  const cfg = await (await fetch("/__/firebase/init.json")).json();
+  app = fb.initializeApp(cfg);
+  db = fb.getFirestore(app);
+  auth = fb.getAuth(app);
+  let extra = [];
+  try {
+    const snap = await fb.getDocs(fb.query(fb.collection(db, "parties"), fb.orderBy("createdAt")));
+    extra = snap.docs.map(d => {
+      const x = d.data();
+      return window.YAMS.makeGame(x.players, { source: x.source || "Appli", series: "Appli", fsid: d.id,
+        note: `Ajoutée depuis l'appli${x.addedBy ? " par " + x.addedBy : ""}.` });
+    });
+  } catch (e) { console.warn("Lecture des parties ajoutées impossible", e); }
+  bootOnce(extra);
+  $("#addBtn").hidden = false;
+  fb.onAuthStateChanged(auth, u => { user = u; refreshAuth(); document.querySelectorAll(".delbox").forEach(b => b.removeAttribute("data-ready")); });
+  document.addEventListener("click", onDelete);
+  setInterval(decorateDelete, 500);
+}
+init().catch(e => { console.warn(e); bootOnce([]); });
+
+// ---------- fenêtre d'ajout
+const dlg = $("#addDlg");
+$("#addBtn").onclick = () => { reset(); dlg.showModal(); refreshAuth(); };
+$("#addClose").onclick = () => dlg.close();
+$("#signIn").onclick = async () => {
+  try { await fb.signInWithPopup(auth, new fb.GoogleAuthProvider()); }
+  catch (e) { status("Connexion impossible : " + (e.code || e.message), true); }
+};
+$("#againBtn").onclick = () => { reset(); $("#photoIn").click(); };
+$("#photoIn").onchange = e => { const f = e.target.files[0]; if (f) readPhoto(f); e.target.value = ""; };
+
+function refreshAuth() {
+  const ok = user && ALLOWED.includes((user.email || "").toLowerCase());
+  $("#stepAuth").hidden = !!ok;
+  $("#stepPhoto").hidden = !ok || !!parsed.length;
+  $("#who").textContent = user ? `Connecté : ${user.email}` : "";
+  if (user && !ok) status(`Le compte ${user.email} n'a pas le droit d'ajouter des parties.`, true);
+}
+function status(t, err) { const s = $("#addStatus"); s.textContent = t; s.className = "status" + (err ? " err" : ""); }
+let parsed = [];
+function reset() { parsed = []; $("#grids").innerHTML = ""; $("#saveRow").hidden = true; $("#thumb").hidden = true; status(""); refreshAuth(); }
+
+async function shrink(file) {
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, 2200 / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  const url = c.toDataURL("image/jpeg", 0.85);
+  return { url, b64: url.split(",")[1] };
+}
+
+const PROMPT = `Tu lis des feuilles de score manuscrites de Yam's (jeu à 5 dés). La photo contient 1 à 4 grilles imprimées.
+Chaque grille a 3 colonnes de joueurs, dans l'ordre : R, G, JM (en-têtes manuscrits).
+Lignes de chaque grille, de haut en bas : 1, 2, 3, 4, 5, 6, Total (sous-total), Bonus 35, Brelan, Carré, Full 25, PS 30, GS 40, Yam's 50, Chance, Total. Le total final est parfois écrit sous la grille et le gagnant est souvent entouré.
+Valeurs possibles : ligne 1 : 0-5 ; ligne 2 : multiples de 2 jusqu'à 10 ; ligne 3 : multiples de 3 jusqu'à 15 ; ligne 4 : multiples de 4 jusqu'à 20 ; ligne 5 : multiples de 5 jusqu'à 25 ; ligne 6 : multiples de 6 jusqu'à 30 ; Brelan : multiples de 3 jusqu'à 18 ; Carré : multiples de 4 jusqu'à 24 ; Full 25 ; PS 30 ; GS 40 ; Yam's 50 ; Chance 5 à 30.
+Une croix (X) signifie case barrée : écris "x". Un « 100 » écrit dans une case (autre que Yam's) est un yam's supplémentaire : écris 100.
+Quand un chiffre est raturé ou réécrit, garde la valeur finale. Si tu hésites, choisis la valeur cohérente avec le sous-total et le total écrits.
+Ordre des grilles : haut-gauche, haut-droite, bas-gauche, bas-droite.
+Réponds uniquement en JSON, sans texte autour, avec cette forme :
+{"parties":[{"position":"haut-gauche","joueurs":{"R":{"cases":[13 valeurs : 1,2,3,4,5,6,Brelan,Carré,Full,PS,GS,Yam's,Chance],"sous_total":nombre ou null,"total":nombre ou null},"G":{...},"JM":{...}}}]}
+Ne mets pas le sous-total ni le bonus dans "cases".`;
+
+async function readPhoto(file) {
+  try {
+    status("Préparation de la photo…");
+    const { url, b64 } = await shrink(file);
+    $("#thumb").src = url; $("#thumb").hidden = false; $("#stepPhoto").hidden = true;
+    status("Lecture des grilles par l'IA… (10 à 30 secondes)");
+    const aiM = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-ai.js`);
+    const ai = aiM.getAI(app, { backend: new aiM.GoogleAIBackend() });
+    let text = null, lastErr = null;
+    for (const m of MODELS) {
+      try {
+        const model = aiM.getGenerativeModel(ai, { model: m, generationConfig: { responseMimeType: "application/json", temperature: 0 } });
+        const r = await model.generateContent([PROMPT, { inlineData: { data: b64, mimeType: "image/jpeg" } }]);
+        text = r.response.text(); break;
+      } catch (e) { lastErr = e; }
+    }
+    if (text == null) throw lastErr;
+    const json = JSON.parse(text.replace(/^```json|```$/g, "").trim());
+    parsed = (json.parties || []).map(normalize);
+    if (!parsed.length) throw new Error("aucune grille trouvée");
+    renderGrids();
+    status(`${parsed.length} grille(s) lue(s). Vérifiez les cases, surtout celles en orange, puis enregistrez.`);
+  } catch (e) {
+    console.error(e);
+    status("La lecture a échoué : " + (e.message || e) + ". Réessayez avec une photo plus nette, bien de face.", true);
+    $("#stepPhoto").hidden = false; parsed = [];
+  }
+}
+function normalize(p) {
+  const out = { position: p.position || "", keep: true, players: {} };
+  P.forEach(k => {
+    const j = (p.joueurs || {})[k] || {};
+    const cases = (j.cases || []).slice(0, 13); while (cases.length < 13) cases.push("x");
+    out.players[k] = { raw: cases.map(v => v === null || v === "x" || v === "X" || v === "" ? "x" : String(v)), written: j.total ?? null };
+  });
+  return out;
+}
+// "x" -> null ; 100 hors yam's -> "Y" ; nombre sinon
+function toCell(v, i) {
+  v = String(v).trim().toLowerCase();
+  if (v === "" || v === "x" || v === "0" && i >= 8 && i <= 11) return null;
+  const n = Number(v); if (!Number.isFinite(n)) return NaN;
+  if (n === 100 && i !== 11) return "Y";
+  return n;
+}
+function isValid(c, i) {
+  if (c === null || c === "Y") return true;
+  if (Number.isNaN(c)) return false;
+  if (i === 11) return c >= 50 && (c - 50) % 100 === 0;
+  if (i === 12) return c >= 0 && c <= 30;
+  return VALID[i].includes(c);
+}
+function gridToPlayers(g) {
+  const out = {};
+  P.forEach(k => { out[k] = { cells: g.players[k].raw.map(toCell), written: g.players[k].written }; });
+  return out;
+}
+function renderGrids() {
+  $("#grids").innerHTML = parsed.map((g, gi) => {
+    let t = `<div class="gridcard" data-g="${gi}"><div class="row" style="justify-content:space-between"><b>Grille ${gi + 1}${g.position ? " · " + g.position : ""}</b>
+      <label class="status"><input type="checkbox" data-keep="${gi}" ${g.keep ? "checked" : ""} style="width:auto"> garder</label></div>
+      <div class="scroll"><table><thead><tr><th></th>${P.map(p => `<th>${p}</th>`).join("")}</tr></thead><tbody>`;
+    ROWS.forEach((name, i) => {
+      t += `<tr><td class="lbl">${name}</td>${P.map(p => `<td><input inputmode="numeric" data-g="${gi}" data-p="${p}" data-i="${i}" value="${g.players[p].raw[i]}" aria-label="${p} ${name}"></td>`).join("")}</tr>`;
+      if (i === 5) t += `<tr class="calc"><td class="lbl">Total haut</td>${P.map(p => `<td data-up="${gi}-${p}"></td>`).join("")}</tr>`;
+    });
+    t += `<tr class="calc"><td class="lbl">Total calculé</td>${P.map(p => `<td data-tot="${gi}-${p}"></td>`).join("")}</tr>`;
+    t += `<tr><td class="lbl">Total écrit</td>${P.map(p => `<td><input inputmode="numeric" data-g="${gi}" data-p="${p}" data-w="1" value="${g.players[p].written ?? ""}" aria-label="${p} total écrit"></td>`).join("")}</tr>`;
+    return t + `</tbody></table></div><p class="status" data-win="${gi}"></p></div>`;
+  }).join("");
+  $("#saveRow").hidden = false;
+  parsed.forEach((_, gi) => recompute(gi));
+}
+$("#grids").addEventListener("input", e => {
+  const el = e.target, gi = +el.dataset.g;
+  if (el.dataset.keep !== undefined) { parsed[+el.dataset.keep].keep = el.checked; return updateSave(); }
+  if (Number.isNaN(gi)) return;
+  const pl = parsed[gi].players[el.dataset.p];
+  if (el.dataset.w) pl.written = el.value.trim() === "" ? null : Number(el.value); else pl.raw[+el.dataset.i] = el.value;
+  recompute(gi);
+});
+$("#grids").addEventListener("change", e => { if (e.target.dataset.keep !== undefined) { parsed[+e.target.dataset.keep].keep = e.target.checked; updateSave(); } });
+function recompute(gi) {
+  const g = parsed[gi], players = gridToPlayers(g); let bad = 0;
+  P.forEach(p => players[p].cells.forEach((c, i) => {
+    const el = document.querySelector(`input[data-g="${gi}"][data-p="${p}"][data-i="${i}"]`);
+    const ok = isValid(c, i); el.classList.toggle("bad", !ok); if (!ok) bad++;
+  }));
+  if (bad) { g.ok = false; P.forEach(p => { document.querySelector(`[data-tot="${gi}-${p}"]`).textContent = "?"; }); document.querySelector(`[data-win="${gi}"]`).textContent = `${bad} case(s) à corriger.`; return updateSave(); }
+  g.ok = true;
+  const game = window.YAMS.makeGame(players, {});
+  P.forEach(p => {
+    const s = game.players[p], w = players[p].written;
+    document.querySelector(`[data-up="${gi}-${p}"]`).textContent = s.upper + (s.bonus ? " +35" : "");
+    document.querySelector(`[data-tot="${gi}-${p}"]`).innerHTML = s.total + (w != null && w !== s.total ? `<br><span class="mis">écrit ${w}</span>` : "");
+  });
+  document.querySelector(`[data-win="${gi}"]`).textContent = game.winners.length > 1 ? `Égalité ${game.winners.join(" / ")}` : `Victoire de ${game.winners[0]}`;
+  updateSave();
+}
+function updateSave() {
+  const kept = parsed.filter(g => g.keep);
+  const btn = $("#saveBtn");
+  btn.disabled = !kept.length || kept.some(g => !g.ok);
+  btn.textContent = kept.length ? `Enregistrer ${kept.length} partie${kept.length > 1 ? "s" : ""}` : "Rien à enregistrer";
+}
+$("#saveBtn").onclick = async () => {
+  const kept = parsed.filter(g => g.keep && g.ok);
+  const btn = $("#saveBtn"); btn.disabled = true; status("Enregistrement…");
+  const day = new Date().toLocaleDateString("fr-FR");
+  try {
+    for (const g of kept) {
+      const players = gridToPlayers(g);
+      P.forEach(p => { players[p].cells = players[p].cells.map(c => c === undefined ? null : c); });
+      await fb.addDoc(fb.collection(db, "parties"), {
+        createdAt: fb.serverTimestamp(), addedBy: user.email,
+        source: `Appli ${day}${g.position ? " " + g.position : ""}`, players });
+    }
+    status("Enregistré. Mise à jour des statistiques…");
+    setTimeout(() => location.reload(), 600);
+  } catch (e) {
+    status("Enregistrement refusé : " + (e.code || e.message) + ". Vérifiez que la base Firestore et ses règles sont en place.", true);
+    btn.disabled = false;
+  }
+};
+
+// ---------- suppression d'une partie ajoutée par erreur (onglet Feuille)
+function decorateDelete() {
+  const box = document.querySelector(".delbox:not([data-ready])"); if (!box) return;
+  box.dataset.ready = "1";
+  const ok = user && ALLOWED.includes((user.email || "").toLowerCase());
+  box.innerHTML = ok ? `<button class="btn danger" data-delask type="button">Supprimer cette partie</button>` : "";
+}
+async function onDelete(e) {
+  const ask = e.target.closest("[data-delask]"), yes = e.target.closest("[data-delyes]"), no = e.target.closest("[data-delno]");
+  if (ask) ask.parentElement.innerHTML = `<p class="note">Supprimer définitivement cette partie ?</p><div class="row"><button class="btn danger" data-delyes type="button">Oui, supprimer</button> <button class="btn ghost" data-delno type="button">Annuler</button></div>`;
+  if (no) { const b = no.closest(".delbox"); b.removeAttribute("data-ready"); decorateDelete(); }
+  if (yes) {
+    const id = yes.closest(".delbox").dataset.fsid;
+    try { await fb.deleteDoc(fb.doc(db, "parties", id)); location.reload(); }
+    catch (err) { yes.closest(".delbox").innerHTML = `<p class="note">Suppression refusée : ${err.code || err.message}</p>`; }
+  }
+}
+</script>
