@@ -459,10 +459,10 @@ if(!window.YAMS_WAIT) boot([]);
       <p class="status"><b>Clé IA à enregistrer (une seule fois).</b> La lecture des photos passe par une clé Gemini gratuite :</p>
       <ol class="status">
         <li>Ouvrez <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> avec votre compte Google.</li>
-        <li>Cliquez sur « Créer une clé API » (Create API key), choisissez le projet <b>Yam's</b> si on vous le demande, puis copiez la clé (elle commence par <code>AIza</code>).</li>
+        <li>Cliquez sur « Créer une clé API » (Create API key), choisissez le projet <b>Yam's</b> si on vous le demande, puis copiez la clé en entier (elle commence par exemple par <code>AIza</code> ou <code>AQ.</code>).</li>
         <li>Collez-la ici. Elle est gardée dans votre base Firebase, lisible seulement par votre compte.</li>
       </ol>
-      <div class="row"><input id="keyIn" type="text" autocomplete="off" placeholder="AIza…" style="flex:1;min-width:0;font:inherit;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--sheet);color:var(--ink)">
+      <div class="row"><input id="keyIn" type="text" autocomplete="off" placeholder="Collez la clé ici" style="flex:1;min-width:0;font:inherit;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--sheet);color:var(--ink)">
       <button class="btn" id="keySave" type="button">Enregistrer la clé</button></div>
     </div>
     <div id="stepPhoto" hidden>
@@ -558,7 +558,7 @@ function showKeyStep(msg) { $("#stepKey").hidden = false; $("#stepPhoto").hidden
 $("#keyChange").onclick = e => { e.preventDefault(); $("#keyIn").value = ""; showKeyStep(); };
 $("#keySave").onclick = async () => {
   const k = $("#keyIn").value.trim();
-  if (!/^AIza[0-9A-Za-z_\-]{20,}$/.test(k)) return status("Cette clé ne ressemble pas à une clé Gemini : elle doit commencer par AIza.", true);
+  if (!/^[0-9A-Za-z._\-]{20,}$/.test(k)) return status("Cette clé ne ressemble pas à une clé Gemini : copiez-la en entier, sans espace.", true);
   try {
     await fb.setDoc(fb.doc(db, "config", "gemini"), { key: k, updatedBy: user.email, updatedAt: fb.serverTimestamp() });
     geminiKey = k; keyLoaded = true; $("#stepKey").hidden = true; $("#stepPhoto").hidden = false;
