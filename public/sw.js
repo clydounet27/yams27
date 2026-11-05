@@ -1,6 +1,6 @@
 // Cache simple du site lui-même : l'appli s'ouvre hors connexion et se met à jour dès que le réseau revient.
 // Les appels à Firebase (base, connexion, IA) ne passent jamais par ce cache.
-const CACHE = "yams-v7";
+const CACHE = "yams-v8";
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"]))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {
