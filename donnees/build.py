@@ -104,6 +104,10 @@ Photo 09/11 haut-gauche|3 6 6 8 20 24 18 x 25 30 x x 13|2 4 3 8 15 12 x x 25 30 
 Photo 09/11 haut-droite|2 4 3 12 10 18 12 x 25 30 40 x 22|1 8 12 8 10 24 12 20 25 30 40 x 26|3 6 12 8 15 24 12 x 25 30 x x 29|178 251 199
 Photo 09/11 bas-gauche|1 6 9 16 10 18 18 24 25 30 40 x 24|1 4 6 12 15 24 18 x 25 30 x 50 22|1 2 9 16 5 6 x Y 25 30 x 50 19|221 207 263
 Photo 09/11 bas-droite|1 6 6 12 25 24 18 12 x 30 40 x 18|2 8 9 16 15 12 18 12 25 30 40 x 23|2 6 9 12 15 18 12 x 25 30 40 x 16|227 210 185
+Photo 15/11 haut-gauche|3 6 12 4 20 24 18 x 25 30 40 x 24|1 4 12 12 15 18 18 x 25 30 40 x 21|2 6 9 16 15 18 12 8 25 30 40 x 24|241 196 240
+Photo 15/11 haut-droite|1 6 9 8 15 18 18 24 25 30 x x 20|1 8 12 12 15 18 9 8 25 30 40 x 20|x 6 9 12 20 24 18 16 25 30 40 x 19|174 233 254
+Photo 15/11 bas-gauche|2 8 9 12 15 18 12 x 25 30 40 x 18|1 4 6 8 15 12 15 x 25 30 40 x 25|2 4 6 16 25 18 18 x 25 30 40 x 19|224 181 243
+Photo 15/11 bas-droite|3 4 6 8 20 24 18 20 25 x 40 x 23|3 4 9 16 10 24 15 x 25 x 40 x 17|1 4 12 16 15 18 18 x 25 30 40 50 18|226 198 282
 """
 
 # Notes de lecture (valeurs déduites des totaux écrits)
@@ -125,6 +129,8 @@ NOTES = {
  "Photo 02/11 (2) bas-droite": "R : total écrit 228, recalculé 238. G : sous-total écrit 60, les cases donnent 59 (total 208 au lieu de 209).",
  "Photo 05/11 haut-droite": "R, case des 2 raturée : lue 6, cohérent avec le sous-total 60 et le total 198.",
  "Photo 05/11 bas-droite": "JM : sous-total écrit 64 mais les cases donnent 65 ; total entouré raturé (301 ou 311 ?), recalculé 292 → c'est G (293) qui gagne d'un point.",
+ "Photo 15/11 haut-gauche": "G, case des 2 lue 4 d'après le sous-total 62 et le total 196.",
+ "Photo 15/11 bas-gauche": "JM : 30 écrit dans la case des 5 (impossible, 25 au maximum) ; compté 25, total 238 au lieu de 243. Gagnant inchangé.",
  "PDF2 p8 haut-gauche": "R, ligne 4 illisible : retenu 8 d'après le sous-total 67.",
  "PDF2 p13 bas-gauche": "JM, ligne 4 comptée barrée d'après le sous-total 53.",
  "PDF2 p7 haut-gauche": "R, yam's raturé compté barré. JM : total écrit 259 mais le calcul donne 239 → égalité avec G (confirmé).",
