@@ -108,6 +108,10 @@ Photo 15/11 haut-gauche|3 6 12 4 20 24 18 x 25 30 40 x 24|1 4 12 12 15 18 18 x 2
 Photo 15/11 haut-droite|1 6 9 8 15 18 18 24 25 30 x x 20|1 8 12 12 15 18 9 8 25 30 40 x 20|x 6 9 12 20 24 18 16 25 30 40 x 19|174 233 254
 Photo 15/11 bas-gauche|2 8 9 12 15 18 12 x 25 30 40 x 18|1 4 6 8 15 12 15 x 25 30 40 x 25|2 4 6 16 25 18 18 x 25 30 40 x 19|224 181 243
 Photo 15/11 bas-droite|3 4 6 8 20 24 18 20 25 x 40 x 23|3 4 9 16 10 24 15 x 25 x 40 x 17|1 4 12 16 15 18 18 x 25 30 40 50 18|226 198 282
+Photo 21/11 haut-gauche|2 4 6 12 15 18 18 16 25 30 40 x 23|1 6 12 12 15 24 9 x 25 30 40 x 21|2 4 9 12 15 24 15 x x 30 40 x 17|209 230 203
+Photo 21/11 haut-droite|1 6 6 20 15 18 x 8 25 30 x x 18|Y 4 9 16 20 6 Y 16 25 30 40 50 20|1 4 6 12 20 6 9 20 25 30 40 x 13|192 436 196
+Photo 21/11 bas-gauche|1 6 9 8 20 12 18 8 x 30 40 50 21|1 8 9 4 15 18 9 x 25 30 40 x 21|1 6 9 8 10 24 12 x 25 30 40 50 18|223 180 233
+Photo 21/11 bas-droite|1 6 6 12 15 18 x x 25 30 40 50 22|1 6 9 16 15 24 9 24 25 30 40 x 21|2 2 9 12 15 12 12 x 25 30 40 x 26|225 255 185
 """
 
 # Notes de lecture (valeurs déduites des totaux écrits)
@@ -131,6 +135,7 @@ NOTES = {
  "Photo 05/11 bas-droite": "JM : sous-total écrit 64 mais les cases donnent 65 ; total entouré raturé (301 ou 311 ?), recalculé 292 → c'est G (293) qui gagne d'un point.",
  "Photo 15/11 haut-gauche": "G, case des 2 lue 4 d'après le sous-total 62 et le total 196.",
  "Photo 15/11 bas-gauche": "JM : 30 écrit dans la case des 5 (impossible, 25 au maximum) ; compté 25, total 238 au lieu de 243. Gagnant inchangé.",
+ "Photo 21/11 haut-droite": "R : total écrit 192, recalculé 182. G : deux « 100 » (case des 1 et brelan) = 3 yam's ; chance raturée lue 20 (cohérent avec 436). JM : sous-total écrit 59 mais les cases donnent 49, total 186 au lieu de 196.",
  "PDF2 p8 haut-gauche": "R, ligne 4 illisible : retenu 8 d'après le sous-total 67.",
  "PDF2 p13 bas-gauche": "JM, ligne 4 comptée barrée d'après le sous-total 53.",
  "PDF2 p7 haut-gauche": "R, yam's raturé compté barré. JM : total écrit 259 mais le calcul donne 239 → égalité avec G (confirmé).",
