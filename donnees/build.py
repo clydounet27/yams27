@@ -112,6 +112,10 @@ Photo 21/11 haut-gauche|2 4 6 12 15 18 18 16 25 30 40 x 23|1 6 12 12 15 24 9 x 2
 Photo 21/11 haut-droite|1 6 6 20 15 18 x 8 25 30 x x 18|Y 4 9 16 20 6 Y 16 25 30 40 50 20|1 4 6 12 20 6 9 20 25 30 40 x 13|192 436 196
 Photo 21/11 bas-gauche|1 6 9 8 20 12 18 8 x 30 40 50 21|1 8 9 4 15 18 9 x 25 30 40 x 21|1 6 9 8 10 24 12 x 25 30 40 50 18|223 180 233
 Photo 21/11 bas-droite|1 6 6 12 15 18 x x 25 30 40 50 22|1 6 9 16 15 24 9 24 25 30 40 x 21|2 2 9 12 15 12 12 x 25 30 40 x 26|225 255 185
+Photo 26/11 haut-gauche|3 8 6 12 10 18 12 x 25 30 x x 16|1 8 6 12 10 18 18 x 25 30 40 50 22|2 8 12 16 10 18 18 x 25 30 x x 22|140 240 196
+Photo 26/11 haut-droite|3 4 12 12 15 24 6 x 25 30 40 x 22|1 4 6 12 10 12 18 x 25 30 x x 19|1 2 3 8 15 24 18 Y 25 30 x 50 20|228 137 258
+Photo 26/11 bas-gauche|4 6 9 8 20 18 9 16 x 30 40 x 20|4 4 9 8 15 12 x x x 30 40 x 19|1 2 9 12 20 24 9 16 25 30 40 50 25|215 141 298
+Photo 26/11 bas-droite|1 6 6 8 10 18 15 x Y 30 40 50 22|1 6 12 12 15 12 15 x 25 30 40 x 21|2 4 9 8 15 18 15 20 25 30 40 x 20|306 187 206
 """
 
 # Notes de lecture (valeurs déduites des totaux écrits)
@@ -136,6 +140,8 @@ NOTES = {
  "Photo 15/11 haut-gauche": "G, case des 2 lue 4 d'après le sous-total 62 et le total 196.",
  "Photo 15/11 bas-gauche": "JM : 30 écrit dans la case des 5 (impossible, 25 au maximum) ; compté 25, total 238 au lieu de 243. Gagnant inchangé.",
  "Photo 21/11 haut-droite": "R : total écrit 192, recalculé 182. G : deux « 100 » (case des 1 et brelan) = 3 yam's ; chance raturée lue 20 (cohérent avec 436). JM : sous-total écrit 59 mais les cases donnent 49, total 186 au lieu de 196.",
+ "Photo 26/11 haut-droite": "JM : total entouré peu lisible (258 ?), recalculé 296 avec le « 100 » du carré compté comme 2e yam's. Gagnant inchangé.",
+ "Photo 26/11 bas-droite": "G : total écrit 187, recalculé 189.",
  "PDF2 p8 haut-gauche": "R, ligne 4 illisible : retenu 8 d'après le sous-total 67.",
  "PDF2 p13 bas-gauche": "JM, ligne 4 comptée barrée d'après le sous-total 53.",
  "PDF2 p7 haut-gauche": "R, yam's raturé compté barré. JM : total écrit 259 mais le calcul donne 239 → égalité avec G (confirmé).",
